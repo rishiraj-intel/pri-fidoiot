@@ -1,10 +1,24 @@
+# hibernate-properties:
+#   hibernate.connection.username: $(db_user)
+#   hibernate.connection.password: $(db_password)
+#   hibernate.connection.url: jdbc:mariadb://10.99.115.208:3306/emdb?useSSL=$(useSSL)
+#   hibernate.connection.requireSSL: $(requireSSL)
+#   hibernate.connection.autoReconnect: true
+#   hibernate.dialect: org.hibernate.dialect.MariaDBDialect
+
 hibernate-properties:
-  hibernate.connection.username: $(db_user)
-  hibernate.connection.password: $(db_password)
-  hibernate.connection.url: jdbc:mariadb://host.docker.internal:3306/emdb?useSSL=$(useSSL)
-  hibernate.connection.requireSSL: $(requireSSL)
-  hibernate.connection.autoReconnect: true
-  hibernate.dialect: org.hibernate.dialect.MariaDBDialect
+  connection.driver_class: org.h2.Driver
+  hibernate.connection.username: sa
+  hibernate.connection.password: sa
+  hibernate.connection.url: jdbc:h2:tcp://localhost:9092/./app-data/emdb
+  hibernate.dialect: org.hibernate.dialect.H2Dialect
+
+h2-database:
+  tcp-server:
+    - "-ifNotExists"
+  web-server:
+    - "-webPort"
+    - "8082"
 
 system-properties:
   log4j.configurationFile: log4j2.xml
@@ -13,12 +27,12 @@ system-properties:
   service.name: "Owner"
   server.api.user: $(api_user)
   server.api.password: "null"
-  javax.net.ssl.keyStorePassword: default
-  javax.net.ssl.trustStorePassword: default
-  javax.net.ssl.keyStore: $(secrets.path)/api-user.pem
-  javax.net.ssl.trustStore: $(secrets.path)/ca-cert.pem
-  javax.net.ssl.keyStoreType: PEM
-  javax.net.ssl.trustStoreType: PEM
+  # javax.net.ssl.keyStorePassword: default
+  # javax.net.ssl.trustStorePassword: default
+  # javax.net.ssl.keyStore: $(secrets.path)/api-user.pem
+  # javax.net.ssl.trustStore: $(secrets.path)/ca-cert.pem
+  # javax.net.ssl.keyStoreType: PEM
+  # javax.net.ssl.trustStoreType: PEM
   #javax.net.debug: ssl:handshake
   #log4j.logger.org.apache.http.impl.conn: DEBUG
   #log4j.logger.org.apache.http.impl.client: DEBUG
@@ -45,8 +59,8 @@ http-server:
   http_timeout: 20000
   server_cert: $(secrets.path)/server-cert.pem
   server_key: $(secrets.path)/server-key.pem
-  truststore_file: $(secrets.path)/ca-cert.pem
-  truststore_type: PEM
+  # truststore_file: $(secrets.path)/ca-cert.pem
+  # truststore_type: PEM
   certificate_verification: want
   protocols: TLSv1.3
   certificate_verification_depth: 2
@@ -76,9 +90,9 @@ epid:
   # fail for non-signature issues (i.e. malformed requests)
   testMode: false
   # TBD: the url below is the used for production purposes
-  # url: http://verifier.fdorv.com
+  # url: http://verify.epid-sbx.trustedservices.intel.com
   # the url below is used for testing purposes only
-  url: http://verifier.fdorv.com
+  url: http://verify.epid-sbx.trustedservices.intel.com
 
 
 
@@ -106,7 +120,8 @@ workers:
   - org.fidoalliance.fdo.protocol.StandardMessageDispatcher
   - org.fidoalliance.fdo.protocol.StandardCryptoService
   - org.fidoalliance.fdo.protocol.StandardHttpServer
-  - org.fidoalliance.fdo.protocol.StandardDatabaseServer
+  # - org.fidoalliance.fdo.protocol.StandardDatabaseServer
+  - org.fidoalliance.fdo.protocol.EmbeddedDatabaseServer
   - org.fidoalliance.fdo.protocol.StandardOwnerKeySupplier
   - org.fidoalliance.fdo.protocol.StandardCwtKeySupplier
   - org.fidoalliance.fdo.protocol.StandardReplacementKeySupplier
