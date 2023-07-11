@@ -21,8 +21,9 @@ COPY service.yml .
 COPY context.xml .
 COPY tomcat-users.xml .
 COPY secrets.run.path /home/fdo/secrets.path
-
-
+COPY ./secrets/ca-cert.pem /home/fdo/ca-cert.pem
+RUN keytool -import -trustcacerts -noprompt -keystore  /usr/lib/jvm/java-11-openjdk-amd64/lib/security/cacerts -storepass changeit -alias ownercacert -file /home/fdo/ca-cert.pem
+COPY config /home/fdo/app-data/config
 RUN chown -R fdo:fdo /home/fdo
 USER fdo
 

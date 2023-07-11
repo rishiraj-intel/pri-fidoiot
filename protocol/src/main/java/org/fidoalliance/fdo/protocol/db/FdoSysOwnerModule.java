@@ -3,11 +3,29 @@
 
 package org.fidoalliance.fdo.protocol.db;
 
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.apis.CustomObjectsApi;
+import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.util.ClientBuilder;
+// import io.kubernetes.client.util.Config;
+import io.kubernetes.client.util.KubeConfig;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.sql.Blob;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.Map;
 import java.util.Objects;
 
@@ -35,6 +53,7 @@ import org.fidoalliance.fdo.protocol.serviceinfo.DevMod;
 import org.fidoalliance.fdo.protocol.serviceinfo.FdoSys;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * Implements FdoSysModule spec.
@@ -184,10 +203,141 @@ public class FdoSysOwnerModule implements ServiceInfoModule {
 
   protected void onFetch(ServiceInfoModuleState state, FdoSysModuleExtra extra,
       byte[] data) throws IOException {
+    String workflowfilepath = "/home/fdo/app-data/workflow.yaml";
+    String harwareworkflowpath = "/home/fdo/app-data/hardware.yaml";
+    String templateworkflowpath = "/home/fdo/app-data/template.yaml";
 
+    boolean gen = generateWorkflow(data,workflowfilepath);
+    boolean genw = generateWorkflow(data,harwareworkflowpath);
+    logger.warn(new String(data, StandardCharsets.US_ASCII));
+    logger.info("acessing cluster....");
+    String kubeConfigPath = "/home/fdo/app-data/config";
+    try {
+      // loading the out-of-cluster config, a kubeconfig from file-system
+      ApiClient client = ClientBuilder.kubeconfig(
+              KubeConfig.loadKubeConfig(new FileReader(kubeConfigPath))).build();
+      //ApiClient client = Config.defaultClient();
+      // set the global default api-client to the in-cluster one from above
+      logger.info("loaded kubeconfig....");
+      Configuration.setDefaultApiClient(client);
+      //creating template resource
+      CustomObjectsApi apit = new CustomObjectsApi(client);
+      FileInputStream fileInputStreamt = new FileInputStream(templateworkflowpath);
+      Yaml yamlt = new Yaml();
+      Map<String, Object> cfgt = yamlt.load(fileInputStreamt);
+      logger.info("starting template.....................................worflow");
+      logger.info(cfgt);
+      apit.createNamespacedCustomObject("tinkerbell.org","v1alpha1",
+          "tink-system","templates",cfgt,null,null,null);
+      //creating hardware resource
+      logger.info("created template.....................................starting hardware worflow");
+      CustomObjectsApi api = new CustomObjectsApi(client);
+      FileInputStream fileInputStream = new FileInputStream(harwareworkflowpath);
+      Yaml yaml = new Yaml();
+      Map<String, Object> cfg = yaml.load(fileInputStream);
+      logger.info(cfg);
+      api.createNamespacedCustomObject("tinkerbell.org","v1alpha1",
+          "tink-system","hardware",cfg,null,null,null);
+      logger.info("create workflow");
+      logger.info("created hardware workflow.....................................starting worflow");
+      Thread.sleep(30000);   
+      CustomObjectsApi api2 = new CustomObjectsApi(client);
+      FileInputStream fileInputStream2 = new FileInputStream(workflowfilepath);
+      Yaml yamlw = new Yaml();
+      Map<String, Object> cfgw = yamlw.load(fileInputStream2);
+      logger.info(cfgw);
+      api2.createNamespacedCustomObject("tinkerbell.org","v1alpha1",
+          "tink-system","workflows",cfgw,null,null,null);
+      // Print the map object
+    } catch (IOException e) {
+      e.printStackTrace();
+    } catch (ApiException e) {
+      System.err.println("Exception when calling CoreV1Api#listPodForAllNamespaces");
+      System.err.println("Status code: " + e.getCode());
+      System.err.println("Reason: " + e.getResponseBody());
+      System.err.println("Response headers: " + e.getResponseHeaders());
+      e.printStackTrace();
+      e.printStackTrace();
+    } catch (InterruptedException ex) {
+      ex.printStackTrace();
+    }
+    // logger.warn(new String(data, StandardCharsets.US_ASCII));
     logger.warn(new String(data, StandardCharsets.US_ASCII));
   }
 
+  protected boolean  generateWorkflow(byte[] inputData,String workflowfilepath) {
+    // Extract device MAC ID from input data (assuming it follows a specific format)
+    String deviceMacId = extractDeviceMacId(inputData);
+    logger.info("generateWorkflow");
+    try {
+      // Read the existing content from the workflow file
+      String existingContent = Files.readString(Path.of(workflowfilepath));
+      // Replace the device MAC ID and template ID in the existing content
+      logger.info("generateWorkflow2" + existingContent);
+      logger.info("generateWorkflow2deviceMacId" + deviceMacId);
+      String updatedContent = updateDeviceMacIdAndTemplateId(existingContent, deviceMacId);
+      // Write the updated content back to the workflow file
+      Files.write(Path.of(workflowfilepath), updatedContent.getBytes(), 
+                    StandardOpenOption.TRUNCATE_EXISTING);
+      logger.info("generateWorkflow3");
+      return true;
+    } catch (IOException e) {
+      e.printStackTrace();
+      return false; 
+    }
+  }
+
+  protected String extractDeviceMacId(byte[] inputData) {
+    // Assuming the MAC ID is present in the inputData as "macid:aabbccddeeff"
+    String inputString = new String(inputData); // Convert byte[] to string
+    String macIdPrefix = "macid:";
+    int macIdIndex = inputString.indexOf(macIdPrefix);
+    logger.info("inputString" + inputString);
+    logger.info("macindex" + macIdIndex);
+    String deviceMacId; 
+    if (macIdIndex != -1) {
+      // Extract the MAC ID by removing the prefix
+      int macIdEndIndex = inputString.indexOf("\n", macIdIndex);
+      deviceMacId = inputString.substring(macIdIndex + macIdPrefix.length(),macIdEndIndex);
+      // deviceMacId = inputString.substring(macIdIndex + macIdPrefix.length()).trim();
+      logger.info("extractDeviceMacId" + deviceMacId);
+      // Remove any leading/trailing whitespace and convert to lowercase
+      deviceMacId = deviceMacId.trim().toLowerCase();
+      return deviceMacId;
+    } else {
+      // MAC ID not found using default AA:BB:CC:DD:EE:FF
+      deviceMacId = "$TINKERBELL_CLIENT_MAC";
+      return deviceMacId;
+    }
+  }
+
+  protected String updateDeviceMacIdAndTemplateId(String content, String deviceMacId) {
+    // Replace the device MAC ID and template ID in the content
+    try {
+      // String updatedContent = content.replace("$TINKERBELL_CLIENT_MAC", deviceMacId)
+      // .replace("templateRef: ubuntu-focal", 
+      // "templateRef: new-template-id");
+      String updatedContent = content.replace("$TINKERBELL_CLIENT_MAC", deviceMacId.trim());
+      logger.info("updatedContent" + updatedContent);
+      return updatedContent;
+    } catch (Exception e) {
+      logger.error("Error occurred while updating device MAC ID and template ID: " 
+                  + e.getMessage());
+      return null; // Return null or handle the error appropriately in your use case
+    } 
+  }
+
+  protected  Map<String, Object> parseYamlFile(String filePath) {
+    try {
+      FileInputStream inputStream = new FileInputStream(filePath);
+      Yaml yaml = new Yaml();
+      return yaml.load(inputStream);
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    }
+    return null;
+  }
+  
   protected void onEot(ServiceInfoModuleState state, FdoSysModuleExtra extra, EotResult result)
       throws IOException {
     logger.info("EOT:resultCode " + result.getResult());

@@ -224,7 +224,7 @@
         <url-pattern>/api/v1/resell/*</url-pattern>
     </servlet-mapping>
 
- <security-constraint>
+ <!-- <security-constraint>
     <web-resource-collection>
         <web-resource-name>apis</web-resource-name>
         <url-pattern>/api/v1/*</url-pattern>
@@ -243,6 +243,6 @@
 
   <security-role>
     <role-name>api</role-name>
-  </security-role>
+  </security-role> -->
 
 </web-app>

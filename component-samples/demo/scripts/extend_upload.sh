@@ -120,7 +120,7 @@ else
     echo "Provided Auth type is not valid, check usage with -h" >&2
     exit 1
 fi
-get_cert=$(curl ${onr_auth_arg} --silent -w "%{http_code}\n" --location --request GET "https://${onr_ip}:${onr_port}/api/v1/certificate?alias=${attestation_type}" -H 'Content-Type: text/plain' -o owner_cert_${attestation_type}.txt)
+get_cert=$(curl  --silent -w "%{http_code}\n" --location --request GET "https://${onr_ip}:${onr_port}/api/v1/certificate?alias=${attestation_type}" -H 'Content-Type: text/plain' -o owner_cert_${attestation_type}.txt -k)
 get_cert_code=$(tail -n1 <<< "$get_cert")
 if [ "$get_cert_code" = "200" ]; then
     echo "Success in downloading ${attestation_type} owner certificate to owner_cert_${attestation_type}.txt"
@@ -130,13 +130,13 @@ if [ "$get_cert_code" = "200" ]; then
     if [ "$get_voucher_code" = "200" ]; then
         echo "Success in downloading extended voucher for device with serial number ${serial_no}"
         extended_voucher=`cat ${serial_no}_voucher.txt`
-        upload_voucher=$(curl ${onr_auth_arg} --silent -w "%{http_code}\n" --location --request POST "https://${onr_ip}:${onr_port}/api/v1/owner/vouchers/" --header 'Content-Type: text/plain' --data-raw "$extended_voucher" -o ${serial_no}_guid.txt)
+        upload_voucher=$(curl  --silent -w "%{http_code}\n" --location --request POST "https://${onr_ip}:${onr_port}/api/v1/owner/vouchers/" --header 'Content-Type: text/plain' --data-raw "$extended_voucher" -o ${serial_no}_guid.txt -k)
         upload_voucher_code=$(tail -n1 <<< "$upload_voucher")
         if [ "$upload_voucher_code" = "200" ]; then
             device_guid=`cat ${serial_no}_guid.txt`
             echo "Success in uploading voucher to owner for device with serial number ${serial_no}"
             echo "GUID of the device is ${device_guid}"
-            trigger_to0=$(curl ${onr_auth_arg} --silent -w "%{http_code}\n" --location --request GET "https://${onr_ip}:${onr_port}/api/v1/to0/${device_guid}" --header 'Content-Type: text/plain')
+            trigger_to0=$(curl  --silent -w "%{http_code}\n" --location --request GET "https://${onr_ip}:${onr_port}/api/v1/to0/${device_guid}" --header 'Content-Type: text/plain' -k)
             trigger_to0_code=$(tail -n1 <<< "$trigger_to0")
             if [ "$trigger_to0_code" = "200" ]; then
                 echo "Success in triggering TO0 for ${serial_no} with GUID ${device_guid}"

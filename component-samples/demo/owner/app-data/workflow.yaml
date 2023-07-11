@@ -1,0 +1,10 @@
+apiVersion: "tinkerbell.org/v1alpha1"
+kind: Workflow
+metadata:
+  name: $UNIQUE_WFLOW_NAME
+  namespace: tink-system
+spec:
+  templateRef: ubuntu-focal
+  hardwareRef: $TINKERBELL_CLIENT_HOST
+  hardwareMap:
+    device_1: $TINKERBELL_CLIENT_MAC

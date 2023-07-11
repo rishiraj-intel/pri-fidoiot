@@ -1,0 +1,25 @@
+apiVersion: "tinkerbell.org/v1alpha1"
+kind: Template
+metadata:
+  name: ubuntu-focal
+spec:
+  data: |
+    version: "0.1"
+    name: ubuntu_Focal
+    global_timeout: 8000
+    tasks:
+      - name: "os-installation"
+        worker: "{{.device_1}}"
+        volumes:
+          - /dev:/dev
+          - /dev/console:/dev/console
+          - /lib/firmware:/lib/firmware:ro
+        actions:
+          - name: "run-fdoto"
+            image: docker.io/nbmaiti/fdoclient_action:9.0
+            timeout: 400
+            environment:
+              FDO_RUN_TYPE: "to"
+              DATA_PARTITION_LBL: "CREDS"
+              FDO_TLS: "https"
+
